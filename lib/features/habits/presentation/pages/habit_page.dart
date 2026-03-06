@@ -179,183 +179,218 @@ class _HabitPageState extends State<HabitPage> {
     TimeOfDay startTime = const TimeOfDay(hour: 8, minute: 0);
     TimeOfDay endTime = const TimeOfDay(hour: 9, minute: 0);
 
-    await showDialog(
+    await showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF3D0F0F),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
+        builder: (context, setDialogState) => Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Color(0xFF2D0A0A),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
           ),
-          title: Text(
-            'Nuevo Hábito',
-            style: GoogleFonts.outfit(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: nameController,
-                  autofocus: true,
-                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
-                  decoration: InputDecoration(
-                    labelText: '¿Qué quieres lograr?',
-                    labelStyle: GoogleFonts.outfit(color: Colors.white70),
-                    hintText: 'Ej: Leer 30 minutos',
-                    hintStyle: GoogleFonts.outfit(
-                      color: Colors.white24,
-                      fontSize: 16,
-                    ),
-                    enabledBorder: const UnderlineInputBorder(
-                      borderSide: BorderSide(color: Colors.white10),
-                    ),
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white10,
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                const SizedBox(height: 30),
-                Text(
-                  'Días de compromiso:',
-                  style: GoogleFonts.outfit(
-                    color: Colors.yellow,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+              ),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Nueva Meta',
+                    style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white38,
+                      size: 32,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 40),
+              Text(
+                '¿QUÉ NOMBRE LE PONDRÁS?',
+                style: GoogleFonts.outfit(
+                  color: Colors.yellow,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w500,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Ej: Meditación diaria',
+                  hintStyle: GoogleFonts.outfit(color: Colors.white12),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white10, width: 2),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Colors.yellow, width: 2),
                   ),
                 ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: List.generate(7, (index) {
-                    int day = index + 1;
-                    bool isDaySelected = selectedDays.contains(day);
-                    return GestureDetector(
-                      onTap: () => setDialogState(
-                        () => isDaySelected
-                            ? selectedDays.remove(day)
-                            : selectedDays.add(day),
+              ),
+              const SizedBox(height: 48),
+              Text(
+                'DÍAS DE COMPROMISO',
+                style: GoogleFonts.outfit(
+                  color: Colors.yellow,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(7, (index) {
+                  int day = index + 1;
+                  bool isDaySelected = selectedDays.contains(day);
+                  return GestureDetector(
+                    onTap: () => setDialogState(
+                      () => isDaySelected
+                          ? selectedDays.remove(day)
+                          : selectedDays.add(day),
+                    ),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isDaySelected
+                            ? Colors.yellow
+                            : Colors.white.withAlpha(5),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDaySelected ? Colors.yellow : Colors.white10,
+                          width: 2,
+                        ),
+                        boxShadow: isDaySelected
+                            ? [
+                                BoxShadow(
+                                  color: Colors.yellow.withAlpha(50),
+                                  blurRadius: 10,
+                                )
+                              ]
+                            : [],
                       ),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isDaySelected
-                              ? Colors.yellow
-                              : Colors.white.withAlpha(5),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isDaySelected
-                                ? Colors.yellow
-                                : Colors.white10,
-                          ),
-                        ),
+                      child: Center(
                         child: Text(
-                          _daysShort[index],
+                          _daysShort[index].substring(0, 1),
                           style: GoogleFonts.outfit(
-                            color: isDaySelected
-                                ? Colors.black
-                                : Colors.white60,
-                            fontSize: 11,
+                            color: isDaySelected ? Colors.black : Colors.white38,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    );
-                  }),
+                    ),
+                  );
+                }),
+              ),
+              const SizedBox(height: 48),
+              Text(
+                'FRANJA HORARIA',
+                style: GoogleFonts.outfit(
+                  color: Colors.yellow,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.5,
                 ),
-                const SizedBox(height: 30),
-                Text(
-                  'Franja horaria:',
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  _timeSelector(
+                    context,
+                    'Inicia',
+                    startTime,
+                    (t) => setDialogState(() => startTime = t),
+                  ),
+                  const SizedBox(width: 20),
+                  _timeSelector(
+                    context,
+                    'Termina',
+                    endTime,
+                    (t) => setDialogState(() => endTime = t),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.yellow,
+                  foregroundColor: Colors.black,
+                  minimumSize: const Size(double.infinity, 64),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: () {
+                  final String name = nameController.text.trim();
+                  if (name.isNotEmpty && selectedDays.isNotEmpty) {
+                    final newHabit = HabitEntity(
+                      name: name,
+                      scheduledDays: selectedDays,
+                      startTime: _formatTime(startTime),
+                      endTime: _formatTime(endTime),
+                    );
+                    context.read<HabitBloc>().add(AddHabitEvent(newHabit));
+                    Navigator.pop(context);
+                  } else if (name.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          '¡Ponle un nombre a tu meta!',
+                          style: GoogleFonts.outfit(
+                            color: const Color(0xFF2D0A0A),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        backgroundColor: Colors.yellow,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                },
+                child: Text(
+                  'COMENZAR AHORA',
                   style: GoogleFonts.outfit(
-                    color: Colors.yellow,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1,
                   ),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    _timeSelector(
-                      context,
-                      'Desde',
-                      startTime,
-                      (t) => setDialogState(() => startTime = t),
-                    ),
-                    const SizedBox(width: 16),
-                    _timeSelector(
-                      context,
-                      'Hasta',
-                      endTime,
-                      (t) => setDialogState(() => endTime = t),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 16),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'CERRAR',
-                style: GoogleFonts.outfit(
-                  color: Colors.white54,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.yellow,
-                foregroundColor: Colors.black,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
-              onPressed: () {
-                final String name = nameController.text.trim();
-                if (name.isNotEmpty && selectedDays.isNotEmpty) {
-                  final newHabit = HabitEntity(
-                    name: name,
-                    scheduledDays: selectedDays,
-                    startTime: _formatTime(startTime),
-                    endTime: _formatTime(endTime),
-                  );
-                  context.read<HabitBloc>().add(AddHabitEvent(newHabit));
-                  Navigator.pop(context);
-                } else if (name.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '¡El hábito necesita un nombre!',
-                        style: GoogleFonts.outfit(
-                          color: const Color(0xFF2D0A0A),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      backgroundColor: Colors.yellow,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-              child: Text(
-                'CREAR HÁBITO',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
         ),
       ),
     );
