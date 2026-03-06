@@ -1,4 +1,4 @@
-# Ironhabit 🦾🍷🟡
+# Ironhabit ☄️🟡
 
 **Sculpt your discipline. Track your essence.**
 
