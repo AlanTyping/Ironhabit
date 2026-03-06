@@ -1,0 +1,525 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../bloc/habit_bloc.dart';
+import '../bloc/habit_event.dart';
+import '../bloc/habit_state.dart';
+import '../../domain/entities/habit_entity.dart';
+import '../widgets/habit_tile.dart';
+
+class HabitPage extends StatefulWidget {
+  const HabitPage({super.key});
+
+  @override
+  State<HabitPage> createState() => _HabitPageState();
+}
+
+class _HabitPageState extends State<HabitPage> {
+  late ScrollController _dayScrollController;
+  int _selectedWeekday = DateTime.now().weekday;
+  final List<String> _daysShort = [
+    'LUN',
+    'MAR',
+    'MIÉ',
+    'JUE',
+    'VIE',
+    'SÁB',
+    'DOM',
+  ];
+
+  // Configuración de dimensiones para el scroll
+  final double _itemWidth = 70.0;
+  final double _itemMargin = 8.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _dayScrollController = ScrollController();
+    // Ejecutar el scroll al centro después de que se construya el primer frame
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _scrollToDay(_selectedWeekday),
+    );
+  }
+
+  @override
+  void dispose() {
+    _dayScrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollToDay(int day) {
+    if (!_dayScrollController.hasClients) return;
+
+    // Índice del día (0-6)
+    int index = day - 1;
+    // Ancho total de un ítem (ancho + márgenes laterales)
+    double fullItemWidth = _itemWidth + (_itemMargin * 2);
+    // Calcular el centro de la pantalla
+    double screenWidth = MediaQuery.of(context).size.width;
+    // Calcular la posición de destino para que el ítem quede en el medio
+    double scrollTarget =
+        (index * fullItemWidth) - (screenWidth / 2) + (fullItemWidth / 2);
+
+    _dayScrollController.animateTo(
+      scrollTarget.clamp(0, _dayScrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.ease,
+    );
+  }
+
+  String _formatTime(TimeOfDay time) {
+    return "${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}";
+  }
+
+  void _showAddHabitDialog() async {
+    final TextEditingController nameController = TextEditingController();
+    List<int> selectedDays = [_selectedWeekday];
+    TimeOfDay startTime = const TimeOfDay(hour: 8, minute: 0);
+    TimeOfDay endTime = const TimeOfDay(hour: 9, minute: 0);
+
+    await showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF3D0F0F),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(28),
+          ),
+          title: Text(
+            'Nuevo Hábito',
+            style: GoogleFonts.outfit(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: nameController,
+                  autofocus: true,
+                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 18),
+                  decoration: InputDecoration(
+                    labelText: '¿Qué quieres lograr?',
+                    labelStyle: GoogleFonts.outfit(color: Colors.white70),
+                    hintText: 'Ej: Leer 30 minutos',
+                    hintStyle: GoogleFonts.outfit(
+                      color: Colors.white24,
+                      fontSize: 16,
+                    ),
+                    enabledBorder: const UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white10),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                Text(
+                  'Días de compromiso:',
+                  style: GoogleFonts.outfit(
+                    color: Colors.yellow,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: List.generate(7, (index) {
+                    int day = index + 1;
+                    bool isDaySelected = selectedDays.contains(day);
+                    return GestureDetector(
+                      onTap: () => setDialogState(
+                        () => isDaySelected
+                            ? selectedDays.remove(day)
+                            : selectedDays.add(day),
+                      ),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isDaySelected
+                              ? Colors.yellow
+                              : Colors.white.withAlpha(5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isDaySelected
+                                ? Colors.yellow
+                                : Colors.white10,
+                          ),
+                        ),
+                        child: Text(
+                          _daysShort[index],
+                          style: GoogleFonts.outfit(
+                            color: isDaySelected
+                                ? Colors.black
+                                : Colors.white60,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 30),
+                Text(
+                  'Franja horaria:',
+                  style: GoogleFonts.outfit(
+                    color: Colors.yellow,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    _timeSelector(
+                      context,
+                      'Desde',
+                      startTime,
+                      (t) => setDialogState(() => startTime = t),
+                    ),
+                    const SizedBox(width: 16),
+                    _timeSelector(
+                      context,
+                      'Hasta',
+                      endTime,
+                      (t) => setDialogState(() => endTime = t),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(
+                'CERRAR',
+                style: GoogleFonts.outfit(
+                  color: Colors.white54,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.yellow,
+                foregroundColor: Colors.black,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+              onPressed: () {
+                final String name = nameController.text.trim();
+                if (name.isNotEmpty && selectedDays.isNotEmpty) {
+                  final newHabit = HabitEntity(
+                    name: name,
+                    scheduledDays: selectedDays,
+                    startTime: _formatTime(startTime),
+                    endTime: _formatTime(endTime),
+                  );
+                  context.read<HabitBloc>().add(AddHabitEvent(newHabit));
+                  Navigator.pop(context);
+                } else if (name.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '¡El hábito necesita un nombre!',
+                        style: GoogleFonts.outfit(
+                          color: const Color(0xFF2D0A0A),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      backgroundColor: Colors.yellow,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
+              },
+              child: Text(
+                'CREAR HÁBITO',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _timeSelector(
+    BuildContext context,
+    String label,
+    TimeOfDay time,
+    Function(TimeOfDay) onSelect,
+  ) {
+    return Expanded(
+      child: InkWell(
+        onTap: () async {
+          final t = await showTimePicker(context: context, initialTime: time);
+          if (t != null) onSelect(t);
+        },
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white.withAlpha(5),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.outfit(color: Colors.white38, fontSize: 11),
+              ),
+              Text(
+                _formatTime(time),
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final greeting = now.hour < 12
+        ? 'Buenos días'
+        : now.hour < 20
+        ? 'Buenas tardes'
+        : 'Buenas noches';
+
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF2D0A0A), Color(0xFF1A0505)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                          greeting,
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            color: Colors.white60,
+                          ),
+                        )
+                        .animate()
+                        .fadeIn(delay: 100.ms)
+                        .slideY(begin: 0.2, end: 0),
+                    Text(
+                          'Tus metas de hoy',
+                          style: GoogleFonts.outfit(
+                            fontSize: 32,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        )
+                        .animate()
+                        .fadeIn(delay: 200.ms)
+                        .slideY(begin: 0.2, end: 0),
+                  ],
+                ),
+              ),
+
+              // Selector de día con Scroll Centrado
+              SizedBox(
+                height: 100,
+                child: ListView.builder(
+                  controller: _dayScrollController,
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: 7,
+                  itemBuilder: (context, index) {
+                    int day = index + 1;
+                    bool isSelected = _selectedWeekday == day;
+                    bool isToday = day == now.weekday;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedWeekday = day);
+                        _scrollToDay(day);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: _itemWidth,
+                        margin: EdgeInsets.symmetric(
+                          horizontal: _itemMargin,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? Colors.yellow
+                              : Colors.white.withAlpha(5),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.yellow.withAlpha(30),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : [],
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.yellow
+                                : (isToday
+                                      ? Colors.yellow.withAlpha(100)
+                                      : Colors.white10),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              _daysShort[index],
+                              style: GoogleFonts.outfit(
+                                color: isSelected
+                                    ? Colors.black
+                                    : Colors.white38,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            if (isSelected)
+                              Container(
+                                width: 4,
+                                height: 4,
+                                decoration: const BoxDecoration(
+                                  color: Colors.black,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              Expanded(
+                child: BlocBuilder<HabitBloc, HabitState>(
+                  builder: (context, state) {
+                    if (state is HabitLoadingState)
+                      return const Center(
+                        child: CircularProgressIndicator(color: Colors.yellow),
+                      );
+                    if (state is HabitLoadedState) {
+                      final habits = state.habits
+                          .where(
+                            (h) => h.scheduledDays.contains(_selectedWeekday),
+                          )
+                          .toList();
+                      habits.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+                      if (habits.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.rocket_launch_outlined,
+                                size: 64,
+                                color: Colors.white10,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Día libre. ¡Disfruta!',
+                                style: GoogleFonts.outfit(
+                                  color: Colors.white24,
+                                  fontSize: 18,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ).animate().fadeIn();
+                      }
+
+                      return ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                        itemCount: habits.length,
+                        itemBuilder: (context, index) {
+                          final habit = habits[index];
+                          final String todayStr = DateFormat(
+                            'yyyy-MM-dd',
+                          ).format(now);
+                          final bool isCompletedToday = habit.completedDays
+                              .contains(todayStr);
+                          final bool isTodayReal =
+                              now.weekday == _selectedWeekday;
+
+                          return HabitTile(
+                            habit: habit,
+                            isCompleted: isCompletedToday,
+                            isToday: isTodayReal,
+                            onToggle: () => context.read<HabitBloc>().add(
+                              ToggleHabitEvent(habit, todayStr),
+                            ),
+                          );
+                        },
+                      );
+                    }
+                    return const SizedBox();
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(
+          bottom: 20.0,
+        ), // Ajuste para que no tape el contenido
+        child: FloatingActionButton.extended(
+          onPressed: _showAddHabitDialog,
+          backgroundColor: Colors.yellow,
+          foregroundColor: Colors.black,
+          elevation: 8,
+          label: Text(
+            'AÑADIR META',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+          ),
+          icon: const Icon(Icons.add_rounded, size: 28),
+        ).animate().scale(delay: 400.ms, curve: Curves.ease),
+      ),
+    );
+  }
+}
