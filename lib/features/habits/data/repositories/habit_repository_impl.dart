@@ -22,4 +22,9 @@ class HabitRepositoryImpl implements HabitRepository {
   Future<void> updateHabit(HabitEntity habit) async {
     await localDataSource.updateHabit(HabitModel.fromEntity(habit));
   }
+
+  @override
+  Future<void> deleteHabit(int id) async {
+    await localDataSource.deleteHabit(id);
+  }
 }

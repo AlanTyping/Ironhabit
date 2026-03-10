@@ -13,9 +13,19 @@ import 'features/mood/data/repositories/mood_repository_impl.dart';
 import 'features/mood/domain/repositories/mood_repository.dart';
 import 'features/mood/presentation/bloc/mood_bloc.dart';
 
+// Pomodoro Feature
+import 'features/pomodoro/presentation/bloc/pomodoro_bloc.dart';
+import 'features/pomodoro/presentation/bloc/pomodoro_stats_bloc.dart';
+import 'features/pomodoro/data/datasources/pomodoro_local_datasource.dart';
+
 final sl = GetIt.instance;
 
 Future<void> init() async {
+  //! Features - Pomodoro
+  sl.registerFactory(() => PomodoroBloc(sl()));
+  sl.registerFactory(() => PomodoroStatsBloc(sl()));
+  sl.registerLazySingleton<PomodoroLocalDataSource>(() => PomodoroLocalDataSourceImpl(sl()));
+
   //! Features - Habits
   // BLoC
   sl.registerFactory(() => HabitBloc(sl()));

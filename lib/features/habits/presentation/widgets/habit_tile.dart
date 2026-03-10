@@ -117,6 +117,6 @@ class HabitTile extends StatelessWidget {
           ),
         ),
       ),
-    ).animate().fadeIn(duration: 400.ms).slideX(begin: 0.1, end: 0);
+    );
   }
 }

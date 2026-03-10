@@ -8,6 +8,7 @@ import '../bloc/habit_event.dart';
 import '../bloc/habit_state.dart';
 import '../../domain/entities/habit_entity.dart';
 import '../widgets/habit_tile.dart';
+import '../widgets/slidable_habit_tile.dart';
 
 class HabitPage extends StatefulWidget {
   const HabitPage({super.key});
@@ -169,6 +170,102 @@ class _HabitPageState extends State<HabitPage> {
             ],
           ),
         ).animate().scale(duration: 400.ms, curve: Curves.ease),
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(HabitEntity habit) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF2D0A0A),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: Colors.white10),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withAlpha(20),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.delete_sweep_rounded,
+                  color: Colors.redAccent,
+                  size: 40,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                '¿Eliminar hábito?',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '¿Estás seguro de que quieres eliminar "${habit.name}"? Esta acción no se puede deshacer.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(color: Colors.white60, fontSize: 15),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'CANCELAR',
+                        style: GoogleFonts.outfit(
+                          color: Colors.white38,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed: () {
+                        if (habit.id != null) {
+                          context.read<HabitBloc>().add(DeleteHabitEvent(habit.id!));
+                        }
+                        Navigator.pop(context);
+                      },
+                      child: Text(
+                        'ELIMINAR',
+                        style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ).animate().scale(duration: 300.ms, curve: Curves.easeOutBack),
       ),
     );
   }
@@ -689,13 +786,14 @@ class _HabitPageState extends State<HabitPage> {
                               final bool isTodayReal =
                                   now.weekday == _selectedWeekday;
 
-                              return HabitTile(
+                              return SlidableHabitTile(
                                 habit: habit,
                                 isCompleted: isCompletedToday,
                                 isToday: isTodayReal,
                                 onToggle: () => context.read<HabitBloc>().add(
                                   ToggleHabitEvent(habit, todayStr),
                                 ),
+                                onDelete: () => _showDeleteConfirmationDialog(habit),
                               );
                             },
                           );

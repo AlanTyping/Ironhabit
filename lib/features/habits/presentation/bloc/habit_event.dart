@@ -23,3 +23,10 @@ class ToggleHabitEvent extends HabitEvent {
   @override
   List<Object?> get props => [habit, date];
 }
+
+class DeleteHabitEvent extends HabitEvent {
+  final int id;
+  const DeleteHabitEvent(this.id);
+  @override
+  List<Object?> get props => [id];
+}

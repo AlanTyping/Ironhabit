@@ -15,12 +15,12 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
-    // Seguimos usando v3 para mantener la compatibilidad con el esquema de tiempo (De/Hasta)
     String path = join(await getDatabasesPath(), 'habit_tracker_v3.db'); 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // Incrementamos a versión 2
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade, // Añadimos manejo de actualizaciones
     );
   }
 
@@ -46,8 +46,27 @@ class DatabaseHelper {
         note TEXT
       )
     ''');
+
+    // Tabla de Estadísticas de Pomodoro
+    await db.execute('''
+      CREATE TABLE pomodoro_stats(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT UNIQUE,
+        total_seconds INTEGER
+      )
+    ''');
   }
 
-  // Métodos de ayuda genéricos (opcionales, ya que los datasources manejan su propia lógica)
-  // Pero los mantenemos para evitar errores si otras partes del código los llaman
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Si el usuario viene de la versión 1, creamos la tabla que le falta
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS pomodoro_stats(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT UNIQUE,
+          total_seconds INTEGER
+        )
+      ''');
+    }
+  }
 }

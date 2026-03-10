@@ -44,5 +44,14 @@ class HabitBloc extends Bloc<HabitEvent, HabitState> {
         emit(HabitErrorState(e.toString()));
       }
     });
+
+    on<DeleteHabitEvent>((event, emit) async {
+      try {
+        await repository.deleteHabit(event.id);
+        add(LoadHabitsEvent());
+      } catch (e) {
+        emit(HabitErrorState(e.toString()));
+      }
+    });
   }
 }

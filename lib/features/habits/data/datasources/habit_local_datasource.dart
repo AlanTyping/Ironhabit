@@ -5,6 +5,7 @@ abstract class HabitLocalDataSource {
   Future<List<HabitModel>> getHabits();
   Future<void> insertHabit(HabitModel habit);
   Future<void> updateHabit(HabitModel habit);
+  Future<void> deleteHabit(int id);
 }
 
 class HabitLocalDataSourceImpl implements HabitLocalDataSource {
@@ -29,5 +30,11 @@ class HabitLocalDataSourceImpl implements HabitLocalDataSource {
   Future<void> updateHabit(HabitModel habit) async {
     final db = await dbHelper.database;
     await db.update('habits', habit.toMap(), where: 'id = ?', whereArgs: [habit.id]);
+  }
+
+  @override
+  Future<void> deleteHabit(int id) async {
+    final db = await dbHelper.database;
+    await db.delete('habits', where: 'id = ?', whereArgs: [id]);
   }
 }
