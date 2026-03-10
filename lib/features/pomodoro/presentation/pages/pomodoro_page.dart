@@ -322,27 +322,39 @@ class PomodoroPage extends StatelessWidget {
                         ),
                       ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.2, end: 0),
 
-                      const SizedBox(height: 32),
-
-                      // Mode Switcher (Pill Style)
-                      if (!isRunning)
-                        Container(
-                          width: 200,
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(5),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white10),
+                      // Animated spacing and switcher
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 600),
+                        curve: Curves.easeInOutCubic,
+                        height: isRunning ? 0 : 80,
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 400),
+                          opacity: isRunning ? 0.0 : 1.0,
+                          child: SingleChildScrollView(
+                            physics: const NeverScrollableScrollPhysics(),
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 32),
+                                Container(
+                                  width: 200,
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withAlpha(5),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: Colors.white10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      _modeToggleOption(context, 'POMODORO', FocusMode.pomodoro, state.mode),
+                                      _modeToggleOption(context, 'LIBRE', FocusMode.freeTime, state.mode),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          child: Row(
-                            children: [
-                              _modeToggleOption(context, 'POMODORO', FocusMode.pomodoro, state.mode),
-                              _modeToggleOption(context, 'LIBRE', FocusMode.freeTime, state.mode),
-                            ],
-                          ),
-                        ).animate().fadeIn(delay: 500.ms)
-                      else
-                        const SizedBox(height: 48),
+                        ),
+                      ),
                     ],
                   ),
                   
