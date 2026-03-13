@@ -19,86 +19,13 @@ class PomodoroPage extends StatelessWidget {
   }
 
   void _showSettingsDialog(BuildContext context, int currentMinutes) {
-    int selectedMinutes = currentMinutes;
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Dialog(
-          backgroundColor: const Color(0xFF2D0A0A),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Configurar Enfoque',
-                  style: GoogleFonts.outfit(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _adjustButton(Icons.remove, () {
-                      if (selectedMinutes > 1) {
-                        setDialogState(() => selectedMinutes--);
-                      }
-                    }),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Text(
-                        '$selectedMinutes min',
-                        style: GoogleFonts.outfit(
-                          color: Colors.yellow,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    _adjustButton(Icons.add, () {
-                      if (selectedMinutes < 120) {
-                        setDialogState(() => selectedMinutes++);
-                      }
-                    }),
-                  ],
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.yellow,
-                    foregroundColor: Colors.black,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed: () {
-                    context.read<PomodoroBloc>().add(SetDuration(selectedMinutes));
-                    Navigator.pop(context);
-                  },
-                  child: Text('GUARDAR', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _adjustButton(IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white.withAlpha(10),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white10),
-        ),
-        child: Icon(icon, color: Colors.white, size: 24),
+      builder: (context) => _PomodoroSettingsDialog(
+        currentMinutes: currentMinutes,
+        onSave: (minutes) {
+          context.read<PomodoroBloc>().add(SetDuration(minutes));
+        },
       ),
     );
   }
@@ -116,6 +43,7 @@ class PomodoroPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -436,6 +364,163 @@ class PomodoroPage extends StatelessWidget {
           color: isSecondary ? Colors.white70 : Colors.black,
           size: isLarge ? 40 : 28,
         ),
+      ),
+    );
+  }
+}
+
+class _PomodoroSettingsDialog extends StatefulWidget {
+  final int currentMinutes;
+  final Function(int) onSave;
+
+  const _PomodoroSettingsDialog({
+    required this.currentMinutes,
+    required this.onSave,
+  });
+
+  @override
+  State<_PomodoroSettingsDialog> createState() => _PomodoroSettingsDialogState();
+}
+
+class _PomodoroSettingsDialogState extends State<_PomodoroSettingsDialog> {
+  late int selectedMinutes;
+  late TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    selectedMinutes = widget.currentMinutes;
+    controller = TextEditingController(text: selectedMinutes.toString());
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  void _updateMinutes(int val) {
+    setState(() {
+      selectedMinutes = val;
+      controller.text = selectedMinutes.toString();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: const Color(0xFF2D0A0A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Configurar Enfoque',
+                style: GoogleFonts.outfit(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  _adjustButton(Icons.remove, () {
+                    if (selectedMinutes > 1) {
+                      _updateMinutes(selectedMinutes - 1);
+                    }
+                  }),
+                  const SizedBox(width: 16),
+                  Column(
+                    children: [
+                      SizedBox(
+                        width: 80,
+                        child: TextField(
+                          controller: controller,
+                          keyboardType: TextInputType.number,
+                          textAlign: TextAlign.center,
+                          cursorColor: Colors.yellow,
+                          style: GoogleFonts.outfit(
+                            color: Colors.yellow,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                          onChanged: (value) {
+                            final newVal = int.tryParse(value);
+                            if (newVal != null) {
+                              selectedMinutes = newVal;
+                            }
+                          },
+                        ),
+                      ),
+                      Text(
+                        'MINUTOS',
+                        style: GoogleFonts.outfit(
+                          color: Colors.white24,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  _adjustButton(Icons.add, () {
+                    if (selectedMinutes < 999) {
+                      _updateMinutes(selectedMinutes + 1);
+                    }
+                  }),
+                ],
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.yellow,
+                  foregroundColor: Colors.black,
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: () {
+                  // Desenfocar teclado antes de cerrar para evitar errores de dispose
+                  FocusScope.of(context).unfocus();
+                  
+                  int finalMinutes = int.tryParse(controller.text) ?? widget.currentMinutes;
+                  if (finalMinutes < 1) finalMinutes = 1;
+                  if (finalMinutes > 999) finalMinutes = 999;
+                  
+                  widget.onSave(finalMinutes);
+                  Navigator.pop(context);
+                },
+                child: Text('GUARDAR', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _adjustButton(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withAlpha(10),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white10),
+        ),
+        child: Icon(icon, color: Colors.white, size: 24),
       ),
     );
   }
