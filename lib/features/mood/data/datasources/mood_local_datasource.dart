@@ -5,6 +5,7 @@ import '../../../../database/database_helper.dart';
 abstract class MoodLocalDataSource {
   Future<List<MoodModel>> getMoods();
   Future<void> insertMood(MoodModel mood);
+  Future<void> deleteMood(String date);
 }
 
 class MoodLocalDataSourceImpl implements MoodLocalDataSource {
@@ -23,5 +24,11 @@ class MoodLocalDataSourceImpl implements MoodLocalDataSource {
   Future<void> insertMood(MoodModel mood) async {
     final db = await dbHelper.database;
     await db.insert('mood_entries', mood.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  @override
+  Future<void> deleteMood(String date) async {
+    final db = await dbHelper.database;
+    await db.delete('mood_entries', where: 'date = ?', whereArgs: [date]);
   }
 }

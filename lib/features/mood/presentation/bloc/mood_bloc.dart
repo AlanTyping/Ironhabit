@@ -26,5 +26,14 @@ class MoodBloc extends Bloc<MoodEvent, MoodState> {
         emit(MoodErrorState(e.toString()));
       }
     });
+
+    on<DeleteMoodEvent>((event, emit) async {
+      try {
+        await repository.deleteMood(event.date);
+        add(LoadMoodsEvent());
+      } catch (e) {
+        emit(MoodErrorState(e.toString()));
+      }
+    });
   }
 }

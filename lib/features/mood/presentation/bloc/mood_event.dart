@@ -15,3 +15,10 @@ class SaveMoodEvent extends MoodEvent {
   @override
   List<Object?> get props => [mood];
 }
+
+class DeleteMoodEvent extends MoodEvent {
+  final String date;
+  const DeleteMoodEvent(this.date);
+  @override
+  List<Object?> get props => [date];
+}

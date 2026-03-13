@@ -17,4 +17,9 @@ class MoodRepositoryImpl implements MoodRepository {
   Future<void> saveMood(MoodEntity mood) async {
     await localDataSource.insertMood(MoodModel.fromEntity(mood));
   }
+
+  @override
+  Future<void> deleteMood(String date) async {
+    await localDataSource.deleteMood(date);
+  }
 }

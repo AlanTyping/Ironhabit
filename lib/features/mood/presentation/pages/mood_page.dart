@@ -26,17 +26,24 @@ class _MoodPageState extends State<MoodPage> {
     _selectedDay = _focusedDay;
   }
 
-  void _saveMood(String mood) {
+  void _saveMood(String mood, String? currentMood) {
     if (_selectedDay == null) return;
+    if (!isSameDay(_selectedDay, DateTime.now())) return;
     String dateStr = DateFormat('yyyy-MM-dd').format(_selectedDay!);
-    context.read<MoodBloc>().add(
-      SaveMoodEvent(MoodEntity(date: dateStr, mood: mood)),
-    );
+    
+    if (currentMood == mood) {
+      // Si el mood ya era el seleccionado, lo borramos
+      context.read<MoodBloc>().add(DeleteMoodEvent(dateStr));
+    } else {
+      // Si es distinto o nuevo, lo guardamos
+      context.read<MoodBloc>().add(
+        SaveMoodEvent(MoodEntity(date: dateStr, mood: mood)),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -47,7 +54,7 @@ class _MoodPageState extends State<MoodPage> {
           ),
         ),
         child: SafeArea(
-          bottom: false, // Permitir que el contenido fluya bajo el navbar
+          bottom: false,
           child: BlocBuilder<MoodBloc, MoodState>(
             builder: (context, state) {
               Map<String, String> moodMap = {};
@@ -83,7 +90,7 @@ class _MoodPageState extends State<MoodPage> {
                             lastDay: DateTime.utc(2030, 12, 31),
                             focusedDay: _focusedDay,
                             calendarFormat: CalendarFormat.month,
-                            rowHeight: 45, // Altura de fila algo más compacta
+                            rowHeight: 45,
                             headerStyle: HeaderStyle(
                               formatButtonVisible: false,
                               titleCentered: true,
@@ -140,7 +147,7 @@ class _MoodPageState extends State<MoodPage> {
                                     day,
                                     moodMap,
                                     isSelected: true,
-                                    isToday: false,
+                                    isToday: isSameDay(day, DateTime.now()),
                                   ),
                             ),
                           ),
@@ -162,7 +169,7 @@ class _MoodPageState extends State<MoodPage> {
 
                     const SizedBox(
                       height: 100,
-                    ), // Espacio para el Navbar flotante
+                    ),
                   ],
                 ),
               );
@@ -219,6 +226,9 @@ class _MoodPageState extends State<MoodPage> {
   Widget _buildMoodPicker(Map<String, String> moodMap) {
     String dateStr = DateFormat('yyyy-MM-dd').format(_selectedDay!);
     String? currentMood = moodMap[dateStr];
+    DateTime now = DateTime.now();
+    bool isToday = isSameDay(_selectedDay, now);
+    bool isFuture = _selectedDay!.isAfter(DateTime(now.year, now.month, now.day, 23, 59, 59));
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -244,7 +254,10 @@ class _MoodPageState extends State<MoodPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '¿Cómo te sientes?',
+              isToday 
+                  ? '¿Cómo te sientes?' 
+                  : (isFuture ? 'No puedes registrar el futuro' : 'Estado de ánimo registrado'),
+              textAlign: TextAlign.center,
               style: GoogleFonts.outfit(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -252,14 +265,24 @@ class _MoodPageState extends State<MoodPage> {
               ),
             ),
             const SizedBox(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _moodOption('happy', '😊', 'Bien', currentMood),
-                _moodOption('neutral', '😐', 'Normal', currentMood),
-                _moodOption('sad', '😢', 'Mal', currentMood),
-              ],
-            ),
+            if (isFuture)
+              const Center(
+                child: Icon(Icons.lock_clock_rounded, color: Colors.white10, size: 64),
+              )
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _moodOption('happy', '😊', 'Bien', currentMood, isToday),
+                  _moodOption('neutral', '😐', 'Normal', currentMood, isToday),
+                  _moodOption('sad', '😢', 'Mal', currentMood, isToday),
+                ],
+              ),
+            if (!isToday && !isFuture && currentMood == null)
+              Text(
+                'No registraste nada este día',
+                style: GoogleFonts.outfit(color: Colors.white24, fontSize: 12),
+              ),
           ],
         ),
       ),
@@ -270,11 +293,12 @@ class _MoodPageState extends State<MoodPage> {
     String mood,
     String emoji,
     String label,
-    String? selectedMood,
+    String? currentMood,
+    bool isEnabled,
   ) {
-    bool isSelected = selectedMood == mood;
+    bool isSelected = currentMood == mood;
     return GestureDetector(
-      onTap: () => _saveMood(mood),
+      onTap: isEnabled ? () => _saveMood(mood, currentMood) : null,
       child: Column(
         children: [
           AnimatedContainer(
@@ -295,7 +319,10 @@ class _MoodPageState extends State<MoodPage> {
                     ]
                   : [],
             ),
-            child: Text(emoji, style: const TextStyle(fontSize: 32)),
+            child: Opacity(
+              opacity: isEnabled || isSelected ? 1.0 : 0.3,
+              child: Text(emoji, style: const TextStyle(fontSize: 32)),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
