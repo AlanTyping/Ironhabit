@@ -55,18 +55,24 @@ class PomodoroLocalDataSourceImpl implements PomodoroLocalDataSource {
   Future<void> saveSeconds(String date, int secondsToAdd) async {
     final db = await dbHelper.database;
     final currentSeconds = await getSecondsByDate(date);
+    const int maxSecondsPerDay = 24 * 60 * 60; // 86400 segundos
+
+    int newTotal = currentSeconds + secondsToAdd;
+    if (newTotal > maxSecondsPerDay) {
+      newTotal = maxSecondsPerDay;
+    }
     
     if (currentSeconds == 0) {
       // Intentar insertar si no existe
       await db.insert('pomodoro_stats', {
         'date': date,
-        'total_seconds': secondsToAdd,
+        'total_seconds': newTotal,
       }, conflictAlgorithm: ConflictAlgorithm.replace);
     } else {
       // Actualizar si ya existe
       await db.update(
         'pomodoro_stats',
-        {'total_seconds': currentSeconds + secondsToAdd},
+        {'total_seconds': newTotal},
         where: 'date = ?',
         whereArgs: [date],
       );

@@ -13,6 +13,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
   static const String _prefEndTimeKey = 'pomodoro_expected_end_time';
   static const String _prefStopwatchStartTimeKey = 'pomodoro_stopwatch_start_time';
   static const String _prefModeKey = 'pomodoro_focus_mode';
+  static const String _prefLastSyncWorkedSecondsKey = 'pomodoro_last_sync_worked_seconds';
   
   int? _workedSecondsAtLastSync;
 
@@ -36,6 +37,8 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
     final modeStr = prefs.getString(_prefModeKey) ?? 'pomodoro';
     final todaySeconds = await dataSource.getSecondsByDate(_getToday());
     
+    _workedSecondsAtLastSync = prefs.getInt(_prefLastSyncWorkedSecondsKey) ?? 0;
+    
     final FocusMode mode = modeStr == 'freeTime' ? FocusMode.freeTime : FocusMode.pomodoro;
     final totalSeconds = savedMinutes * 60;
 
@@ -45,7 +48,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
         final now = DateTime.now();
         if (expectedEndTime.isAfter(now)) {
           final remaining = expectedEndTime.difference(now).inSeconds;
-          _workedSecondsAtLastSync = totalSeconds - remaining;
+          // _workedSecondsAtLastSync ya se cargó de prefs
           emit(state.copyWith(
             defaultMinutes: savedMinutes,
             totalSeconds: totalSeconds,
@@ -59,6 +62,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
           return;
         } else {
           await prefs.remove(_prefEndTimeKey);
+          await prefs.remove(_prefLastSyncWorkedSecondsKey);
           emit(state.copyWith(
             defaultMinutes: savedMinutes,
             totalSeconds: totalSeconds,
@@ -76,7 +80,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
       if (startTime != null) {
         final now = DateTime.now();
         final elapsed = now.difference(startTime).inSeconds;
-        _workedSecondsAtLastSync = 0; // Se sincroniza sobre el total acumulado
+        // _workedSecondsAtLastSync ya se cargó de prefs
         emit(state.copyWith(
           defaultMinutes: savedMinutes,
           totalSeconds: totalSeconds,
@@ -120,12 +124,14 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
       final expectedEndTime = now.add(Duration(seconds: state.remainingSeconds));
       _workedSecondsAtLastSync = state.totalSeconds - state.remainingSeconds;
       await prefs.setString(_prefEndTimeKey, expectedEndTime.toIso8601String());
+      await prefs.setInt(_prefLastSyncWorkedSecondsKey, _workedSecondsAtLastSync!);
       emit(state.copyWith(status: PomodoroStatus.running, expectedEndTime: expectedEndTime));
     } else {
       // En modo libre, el startTime es ahora menos lo que ya llevábamos (si pausamos y reanudamos)
       final stopwatchStartTime = now.subtract(Duration(seconds: state.stopwatchSeconds));
       _workedSecondsAtLastSync = state.stopwatchSeconds;
       await prefs.setString(_prefStopwatchStartTimeKey, stopwatchStartTime.toIso8601String());
+      await prefs.setInt(_prefLastSyncWorkedSecondsKey, _workedSecondsAtLastSync!);
       emit(state.copyWith(status: PomodoroStatus.running, stopwatchStartTime: stopwatchStartTime));
     }
     
@@ -139,6 +145,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefEndTimeKey);
     await prefs.remove(_prefStopwatchStartTimeKey);
+    // No removemos _prefLastSyncWorkedSecondsKey porque queremos reanudar desde ahí
 
     final todaySeconds = await dataSource.getSecondsByDate(_getToday());
     emit(state.copyWith(
@@ -158,6 +165,8 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefEndTimeKey);
     await prefs.remove(_prefStopwatchStartTimeKey);
+    await prefs.remove(_prefLastSyncWorkedSecondsKey);
+    _workedSecondsAtLastSync = 0;
 
     final todaySeconds = await dataSource.getSecondsByDate(_getToday());
     emit(state.copyWith(
@@ -182,6 +191,8 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
         await _syncWorkedTime();
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_prefEndTimeKey);
+        await prefs.remove(_prefLastSyncWorkedSecondsKey);
+        _workedSecondsAtLastSync = 0;
         final todaySeconds = await dataSource.getSecondsByDate(_getToday());
         emit(state.copyWith(remainingSeconds: 0, status: PomodoroStatus.finished, clearExpectedEndTime: true, dailySeconds: todaySeconds));
       }
@@ -205,15 +216,49 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
     if (_workedSecondsAtLastSync != null) {
       final diff = workedNow - _workedSecondsAtLastSync!;
       if (diff > 0) {
-        await dataSource.saveSeconds(_getToday(), diff);
+        DateTime startTime;
+        if (state.mode == FocusMode.pomodoro && state.expectedEndTime != null) {
+          startTime = state.expectedEndTime!.subtract(Duration(seconds: state.totalSeconds - _workedSecondsAtLastSync!));
+        } else if (state.mode == FocusMode.freeTime && state.stopwatchStartTime != null) {
+          startTime = state.stopwatchStartTime!.add(Duration(seconds: _workedSecondsAtLastSync!));
+        } else {
+          // Fallback al comportamiento anterior si faltan tiempos
+          await dataSource.saveSeconds(_getToday(), diff);
+          _workedSecondsAtLastSync = workedNow;
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setInt(_prefLastSyncWorkedSecondsKey, workedNow);
+          return;
+        }
+
+        final endTime = startTime.add(Duration(seconds: diff));
+        await _saveDistributedSeconds(startTime, endTime);
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_prefLastSyncWorkedSecondsKey, workedNow);
       }
     }
     _workedSecondsAtLastSync = workedNow;
   }
 
+  Future<void> _saveDistributedSeconds(DateTime startTime, DateTime endTime) async {
+    DateTime current = startTime;
+    while (current.year != endTime.year || current.month != endTime.month || current.day != endTime.day) {
+      DateTime nextDay = DateTime(current.year, current.month, current.day + 1);
+      int secondsInThisDay = nextDay.difference(current).inSeconds;
+      await dataSource.saveSeconds(DateFormat('yyyy-MM-dd').format(current), secondsInThisDay);
+      current = nextDay;
+    }
+    int remainingSeconds = endTime.difference(current).inSeconds;
+    if (remainingSeconds > 0) {
+      await dataSource.saveSeconds(DateFormat('yyyy-MM-dd').format(current), remainingSeconds);
+    }
+  }
+
   Future<void> _onSetDuration(SetDuration event, Emitter<PomodoroState> emit) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_prefMinutesKey, event.minutes);
+    await prefs.remove(_prefLastSyncWorkedSecondsKey);
+    _workedSecondsAtLastSync = 0;
     
     _tickerSubscription?.cancel();
     final totalSeconds = event.minutes * 60;
@@ -231,6 +276,8 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefModeKey, event.mode == FocusMode.freeTime ? 'freeTime' : 'pomodoro');
+    await prefs.remove(_prefLastSyncWorkedSecondsKey);
+    _workedSecondsAtLastSync = 0;
     
     emit(state.copyWith(
       mode: event.mode,
