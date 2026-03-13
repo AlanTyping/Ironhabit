@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:io' show Platform;
 import 'injection_container.dart' as di;
+import 'core/services/notification_service.dart';
 
 // BLoCs
 import 'features/habits/presentation/bloc/habit_bloc.dart';
@@ -30,6 +31,7 @@ void main() async {
   }
 
   await di.init();
+  await di.sl<NotificationService>().init();
 
   runApp(const HabitTrackerApp());
 }

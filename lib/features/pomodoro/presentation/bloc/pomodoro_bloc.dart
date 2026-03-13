@@ -3,11 +3,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import '../../data/datasources/pomodoro_local_datasource.dart';
+import '../../../../core/services/notification_service.dart';
 import 'pomodoro_event.dart';
 import 'pomodoro_state.dart';
 
 class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
   final PomodoroLocalDataSource dataSource;
+  final NotificationService notificationService;
   StreamSubscription<int>? _tickerSubscription;
   static const String _prefMinutesKey = 'pomodoro_duration';
   static const String _prefEndTimeKey = 'pomodoro_expected_end_time';
@@ -17,7 +19,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
   
   int? _workedSecondsAtLastSync;
 
-  PomodoroBloc(this.dataSource) : super(PomodoroState.initial()) {
+  PomodoroBloc(this.dataSource, this.notificationService) : super(PomodoroState.initial()) {
     on<LoadPomodoroSettings>(_onLoadSettings);
     on<StartTimer>(_onStart);
     on<PauseTimer>(_onPause);
@@ -141,6 +143,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
   Future<void> _onPause(PauseTimer event, Emitter<PomodoroState> emit) async {
     _tickerSubscription?.cancel();
     await _syncWorkedTime();
+    await notificationService.cancelNotification();
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefEndTimeKey);
@@ -161,6 +164,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
     if (state.status == PomodoroStatus.running) {
       await _syncWorkedTime();
     }
+    await notificationService.cancelNotification();
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefEndTimeKey);
@@ -186,6 +190,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
       if (state.expectedEndTime!.isAfter(now)) {
         final remaining = state.expectedEndTime!.difference(now).inSeconds;
         emit(state.copyWith(remainingSeconds: remaining));
+        _updateNotification(remaining);
       } else {
         _tickerSubscription?.cancel();
         await _syncWorkedTime();
@@ -195,10 +200,16 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
         _workedSecondsAtLastSync = 0;
         final todaySeconds = await dataSource.getSecondsByDate(_getToday());
         emit(state.copyWith(remainingSeconds: 0, status: PomodoroStatus.finished, clearExpectedEndTime: true, dailySeconds: todaySeconds));
+        notificationService.showTimerNotification(
+          title: '¡Sesión Terminada!',
+          content: 'Buen trabajo enfocado.',
+          isOngoing: false,
+        );
       }
     } else if (state.mode == FocusMode.freeTime && state.stopwatchStartTime != null) {
       final elapsed = now.difference(state.stopwatchStartTime!).inSeconds;
       emit(state.copyWith(stopwatchSeconds: elapsed));
+      _updateNotification(elapsed);
       // Sincronización proactiva cada 30 segundos en modo libre
       if (elapsed % 30 == 0) {
         await _syncWorkedTime();
@@ -206,6 +217,20 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
         emit(state.copyWith(dailySeconds: todaySeconds));
       }
     }
+  }
+
+  void _updateNotification(int seconds) {
+    final title = state.mode == FocusMode.pomodoro ? 'Sesión de Enfoque' : 'Tiempo Libre';
+    notificationService.showTimerNotification(
+      title: title,
+      content: _formatTime(seconds),
+    );
+  }
+
+  String _formatTime(int totalSeconds) {
+    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
   }
 
   Future<void> _syncWorkedTime() async {
@@ -259,6 +284,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
     await prefs.setInt(_prefMinutesKey, event.minutes);
     await prefs.remove(_prefLastSyncWorkedSecondsKey);
     _workedSecondsAtLastSync = 0;
+    await notificationService.cancelNotification();
     
     _tickerSubscription?.cancel();
     final totalSeconds = event.minutes * 60;
@@ -278,6 +304,7 @@ class PomodoroBloc extends Bloc<PomodoroEvent, PomodoroState> {
     await prefs.setString(_prefModeKey, event.mode == FocusMode.freeTime ? 'freeTime' : 'pomodoro');
     await prefs.remove(_prefLastSyncWorkedSecondsKey);
     _workedSecondsAtLastSync = 0;
+    await notificationService.cancelNotification();
     
     emit(state.copyWith(
       mode: event.mode,

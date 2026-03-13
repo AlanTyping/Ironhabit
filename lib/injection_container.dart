@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'database/database_helper.dart';
+import 'core/services/notification_service.dart';
 
 // Habits Feature
 import 'features/habits/data/datasources/habit_local_datasource.dart';
@@ -22,7 +23,7 @@ final sl = GetIt.instance;
 
 Future<void> init() async {
   //! Features - Pomodoro
-  sl.registerFactory(() => PomodoroBloc(sl()));
+  sl.registerFactory(() => PomodoroBloc(sl(), sl()));
   sl.registerFactory(() => PomodoroStatsBloc(sl()));
   sl.registerLazySingleton<PomodoroLocalDataSource>(() => PomodoroLocalDataSourceImpl(sl()));
 
@@ -44,4 +45,5 @@ Future<void> init() async {
 
   //! External
   sl.registerLazySingleton(() => DatabaseHelper());
+  sl.registerLazySingleton(() => NotificationService());
 }
